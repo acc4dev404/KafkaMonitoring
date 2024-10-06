@@ -1,0 +1,43 @@
+services:
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper
+    container_name: zookeeper_container
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
+
+  kafka:
+    image: confluentinc/cp-kafka
+    container_name: kafka_container
+    restart: unless-stopped
+    hostname: broker
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+      - 9876:9876
+    volumes:
+      - ./kafka-exporter/:/opt/
+    environment:
+      KAFKA_OPTS: "-javaagent:/opt/jmx_prometheus_javaagent-1.0.1.jar=9876:/opt/kafka-connect.yml"
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://192.168.1.45:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+
+  kafka_exporter:
+    image: danielqsj/kafka-exporter
+    container_name: kafka_exporter_container
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    command: 
+      - --kafka.server=192.168.1.45:9092
+      - '--log.level=debug'
+      - '--log.enable-sarama'
+    ports:
+      - 9308:9308
